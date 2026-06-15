@@ -1,26 +1,19 @@
-const express = require('express');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 
 puppeteer.use(StealthPlugin());
-const app = express();
-const PORT = process.env.PORT || 10000;
 
 // --- CONFIGURATION ---
 const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1516120799038275665/bDyYMwOCs6kJQFlMysG-jCUTIYhahfXPTvozJC-jC1EhkLSCJzJ_VakPbuU8TIV_5M3W'; 
+const DB_FILE = path.join(__dirname, 'seen_ads.json'); 
 
-const DB_FILE = path.join(os.tmpdir(), 'seen_ads.json'); 
-
-// 📈 EXPANDED BUDGET BRACKET: 5L to 20L
 const MIN_PRICE = 500000;  
-const MAX_PRICE = 2000000; // 20 Lakh (Updated)
+const MAX_PRICE = 2000000; // 20 Lakh Budget
 
 const TARGETS = {
-    // Queries optimized for Karachi market within 5 Lac to 20 Lac range
     pakwheels: 'https://www.pakwheels.com/used-cars/search/-/ct_karachi/pr_500000_2000000/srt_date-desc/',
     olx: 'https://www.olx.com.pk/karachi_g4060695/cars_c84?filter=price_between_500000_to_2000000&sort=date_desc',
     garipk: 'https://www.gari.pk/used-cars/karachi/',
@@ -50,23 +43,17 @@ function parsePrice(priceStr) {
 }
 
 function getAppRedirectLinks(webLink, platform, adId) {
-    if (platform === 'PakWheels') {
-        return `pakwheels://classified/details?id=${adId}`;
-    }
-    if (platform === 'OLX') {
-        return `olxpk://item/${adId}`;
-    }
+    if (platform === 'PakWheels') return `pakwheels://classified/details?id=${adId}`;
+    if (platform === 'OLX') return `olxpk://item/${adId}`;
     return webLink;
 }
 
 async function sendDiscordAlert(carData) {
     let colors = { 'PakWheels': 1240319, 'OLX': 1999204, 'Gari.pk': 14169620, 'Trovit': 15105570 };
-    
     let adId = carData.id;
     if (carData.platform === 'PakWheels' && adId.includes('-')) {
         adId = adId.split('-').pop();
     }
-
     const appLink = getAppRedirectLinks(carData.link, carData.platform, adId);
     const cleanTitle = carData.title.replace(/\s+/g, ' ').trim();
 
@@ -80,50 +67,29 @@ async function sendDiscordAlert(carData) {
                 color: colors[carData.platform] || 8421504,
                 description: `> ⚡ **Action Required:** Open this listing directly inside the official mobile application for instant contact.\n> 📱 **[Redirect to Native Mobile App](${appLink})**`,
                 fields: [
-                    { 
-                        name: "💰 Financials", 
-                        value: `\`\`\`💵 Price: ${carData.price}\`\`\``, 
-                        inline: false 
-                    },
-                    { 
-                        name: "📋 Vehicle Specifications", 
-                        value: `• **Model Year:** ${carData.year}\n• **Kilometers:** ${carData.mileage}\n• **Sourcing Platform:** ${carData.platform}`, 
-                        inline: true 
-                    },
-                    { 
-                        name: "📍 Location & Status", 
-                        value: `• **Region:** Karachi, Pakistan\n• **Status:** Active Listing\n• **Data Feed:** Live Scan`, 
-                        inline: true 
-                    },
-                    { 
-                        name: "🔍 Additional Metadata / Description Extraction", 
-                        value: `\`\`\`txt\n${carData.specs || 'No further description provided by seller.'}\n\`\`\``, 
-                        inline: false 
-                    }
+                    { name: "💰 Financials", value: `\`\`\`💵 Price: ${carData.price}\`\`\``, inline: false },
+                    { name: "📋 Vehicle Specifications", value: `• **Model Year:** ${carData.year}\n• **Kilometers:** ${carData.mileage}\n• **Sourcing Platform:** ${carData.platform}`, inline: true },
+                    { name: "📍 Location & Status", value: `• **Region:** Karachi, Pakistan\n• **Status:** Active Listing\n• **Data Feed:** Live Scan`, inline: true },
+                    { name: "🔍 Additional Metadata / Description Extraction", value: `\`\`\`txt\n${carData.specs || 'No further description provided by seller.'}\n\`\`\``, inline: false }
                 ],
-                // Updated Footer Range Info too
-                footer: { 
-                    text: "Automated Arbitrage Router | Target Bracket: PKR 500,000 - 2,000,000" 
-                },
+                footer: { text: "Automated Arbitrage Router | Target Bracket: PKR 500,000 - 2,000,000" },
                 timestamp: new Date()
             }]
         });
-        console.log(`💼 [Professional Alert] Successfully routed ${cleanTitle} to Discord.`);
-    } catch (err) { 
-        console.error('Professional Notification Dispatch Failed:'); 
-    }
+        console.log(`💼 routed ${cleanTitle} to Discord.`);
+    } catch (err) { console.error('Dispatch Failed'); }
 }
 
-async function checkMarketplace() {
-    console.log(`[${new Date().toLocaleTimeString()}] Scanning 4 Platforms for ALL CARS (5L - 20L)...`);
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+async function run() {
+    console.log(`Scanning Marketplaces...`);
+    const browser = await puppeteer.launch({ headless: "new", args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const page = await browser.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
 
     try {
         const seenAds = getSeenAds();
 
-        // --- 1. PAKWHEELS ENGINE ---
+        // --- PAKWHEELS ---
         await page.goto(TARGETS.pakwheels, { waitUntil: 'domcontentloaded' });
         const pwAds = await page.evaluate(() => {
             return Array.from(document.querySelectorAll('.classified-listing')).map(el => {
@@ -141,7 +107,7 @@ async function checkMarketplace() {
             }
         }
 
-        // --- 2. OLX ENGINE ---
+        // --- OLX ---
         await page.goto(TARGETS.olx, { waitUntil: 'domcontentloaded' });
         const olxAds = await page.evaluate(() => {
             return Array.from(document.querySelectorAll('article[data-aut-id="item"]')).map(el => {
@@ -162,17 +128,8 @@ async function checkMarketplace() {
                 }
             }
         }
-
-    } catch (e) { console.error("Scrape Error:"); }
+    } catch (e) { console.error(e); }
     finally { await browser.close(); }
 }
 
-app.get('/', async (req, res) => {
-    res.send('Omni Scalper Engine v3 is Online!');
-    checkMarketplace();
-});
-
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    checkMarketplace(); 
-});
+run();
