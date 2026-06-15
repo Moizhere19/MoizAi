@@ -13,14 +13,14 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # Force integration of Node 24 directly onto the runner environment
     - name: Setup Node.js v24
       uses: actions/setup-node@v4
       with:
         node-version: 24
         cache: 'npm'
 
-    - name: Install Google Chrome & Linux Libraries
+    # 🔥 Fixed: Ubuntu 24.04 friendly package manager configs
+    - name: Install Google Chrome & Minimal Linux Runtime
       run: |
         sudo apt-get update
         sudo apt-get install -y wget gnupg
@@ -28,9 +28,9 @@ jobs:
         sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
         sudo apt-get update
         sudo apt-get install -y google-chrome-stable --no-install-recommends
-        sudo apt-get install -y libgconf-2-4 libatk1.0-0 libatk-bridge2.0-0 libgdk-pixbuf2.0-0 libgtk-3-0 libgbm-dev libnss3 libxss1 libasound2
+        # Only install existing modern graphics/font rendering dependencies
+        sudo apt-get install -y libnss3 libxss1 libgbm-dev libasound2t64 || sudo apt-get install -y libnss3 libxss1 libgbm-dev
 
-    # Clear old locks and force correct installations
     - name: Install Hardened Dependencies
       run: |
         rm -rf node_modules package-lock.json
