@@ -1,10 +1,12 @@
-const puppeteer = require('puppeteer-extra');
+const puppeteerExtra = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-puppeteer.use(StealthPlugin());
+// 🔥 Tell puppeteer-extra to use puppeteer-core as the underlying driver
+const puppeteer = puppeteerExtra.use(StealthPlugin());
+puppeteer.vanillaLauncher = require('puppeteer-core'); 
 
 // --- CONFIGURATION ---
 const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1516120799038275665/bDyYMwOCs6kJQFlMysG-jCUTIYhahfXPTvozJC-jC1EhkLSCJzJ_VakPbuU8TIV_5M3W'; 
@@ -80,15 +82,66 @@ async function sendDiscordAlert(carData) {
     } catch (err) { console.error('Dispatch Failed'); }
 }
 
-// Find the run() function at the bottom and update the puppeteer launch line:
-const browser = await puppeteer.launch({ 
-    headless: "new", 
-    executablePath: '/usr/bin/google-chrome', // 🔥 Forces Puppeteer to use the installed Linux Chrome
-    args: [
-        '--no-sandbox', 
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage', // Prevents memory crashes in docker/linux
-        '--disable-gpu'
-    ] 
-});
+async function run() {
+    console.log(`Scanning Marketplaces...`);
+    // 🔥 FORCED: Linux Official Google Chrome Path for Actions Runner
+    const browser = await puppeteer.launch({ 
+        headless: "new", 
+        executablePath: '/usr/bin/google-chrome', 
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage', 
+            '--disable-gpu'
+        ] 
+    });
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+
+    try {
+        const seenAds = getSeenAds();
+
+        // --- PAKWHEELS ---
+        await page.goto(TARGETS.pakwheels, { waitUntil: 'domcontentloaded' });
+        const pwAds = await page.evaluate(() => {
+            return Array.from(document.querySelectorAll('.classified-listing')).map(el => {
+                const linkEl = el.querySelector('a.car-name');
+                const priceEl = el.querySelector('.price-details');
+                const specsList = el.querySelector('.search-vehicle-info-v2, .search-vehicle-info');
+                return { id: linkEl?.getAttribute('href'), title: linkEl?.innerText.trim() || "", price: priceEl?.innerText.trim() || "0", rawSpecs: specsList?.innerText.replace(/\s+/g, ' ').trim() || "" };
+            }).filter(ad => ad.id);
+        });
+        for (let ad of pwAds) {
+            const numericPrice = parsePrice(ad.price);
+            if (numericPrice >= MIN_PRICE && numericPrice <= MAX_PRICE && !seenAds.includes(ad.id)) {
+                await sendDiscordAlert({ id: ad.id, title: ad.title, price: ad.price, link: 'https://www.pakwheels.com' + ad.id, platform: 'PakWheels', year: ad.rawSpecs.match(/\b(20\d{2})\b/)?.[0] || "N/A", mileage: ad.rawSpecs.match(/[\d,]+\s*km/i)?.[0] || "N/A", specs: ad.rawSpecs });
+                saveSeenAd(ad.id);
+            }
+        }
+
+        // --- OLX ---
+        await page.goto(TARGETS.olx, { waitUntil: 'domcontentloaded' });
+        const olxAds = await page.evaluate(() => {
+            return Array.from(document.querySelectorAll('article[data-aut-id="item"]')).map(el => {
+                const linkEl = el.querySelector('a');
+                const priceEl = el.querySelector('[data-aut-id="itemPrice"]');
+                const titleEl = el.querySelector('[data-aut-id="itemTitle"]');
+                const subtitleEl = el.querySelector('[data-aut-id="itemSubTitle"]') || el.querySelector('div._1075545d');
+                const locationEl = el.querySelector('[data-aut-id="itemLocation"]');
+                return { id: linkEl?.getAttribute('href').split('-').pop(), title: titleEl?.innerText.trim() || "", price: priceEl?.innerText.trim() || "0", sub: subtitleEl?.innerText.trim() || "", loc: locationEl?.innerText.trim() || "Karachi", link: linkEl ? 'https://www.olx.com.pk' + linkEl.getAttribute('href') : "" };
+            }).filter(ad => ad.id);
+        });
+        for (let ad of olxAds) {
+            if ((ad.title + " " + ad.loc).toLowerCase().includes('karachi')) {
+                const numericPrice = parsePrice(ad.price);
+                if (numericPrice >= MIN_PRICE && numericPrice <= MAX_PRICE && !seenAds.includes(ad.id)) {
+                    await sendDiscordAlert({ id: ad.id, title: ad.title, price: ad.price, link: ad.link, platform: 'OLX', year: ad.sub.match(/\b(20\d{2})\b/)?.[0] || "N/A", mileage: ad.sub.match(/[\d,]+\s*km/i)?.[0] || "N/A", specs: `Location: ${ad.loc} | ${ad.sub}` });
+                    saveSeenAd(ad.id);
+                }
+            }
+        }
+    } catch (e) { console.error(e); }
+    finally { await browser.close(); }
+}
+
 run();
