@@ -1,5 +1,4 @@
 name: Karachi Car Scalper Engine
-
 on:
   schedule:
     - cron: '*/15 * * * *'
@@ -11,13 +10,11 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
-
-    - name: Setup Node.js
+    - name: Setup Node
       uses: actions/setup-node@v4
       with:
         node-version: '20'
-
-    - name: Initialize Agent
-      run: |
-        npm install axios
-        node scraper.js
+    - name: Install dependencies
+      run: npm install puppeteer axios
+    - name: Run Agent
+      run: node agent.j
