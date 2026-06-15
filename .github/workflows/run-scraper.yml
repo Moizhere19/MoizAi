@@ -6,46 +6,18 @@ on:
   workflow_dispatch: 
 
 jobs:
-  scrape:
+  agent-init:
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js v24
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: 24
-        cache: 'npm'
+        node-version: '20'
 
-    # 🔥 Fixed: Removed broken legacy packages completely to avoid exit code 100
-    - name: Install Google Chrome & Stable Linux Runtime
+    - name: Initialize Agent
       run: |
-        sudo apt-get update
-        sudo apt-get install -y wget gnupg
-        wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
-        sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
-        sudo apt-get update
-        sudo apt-get install -y google-chrome-stable --no-install-recommends
-        # Only install existing modern libraries that Chrome actually needs
-        sudo apt-get install -y libnss3 libxss1 libgbm-dev
-
-    - name: Install Hardened Dependencies
-      run: |
-        rm -rf node_modules package-lock.json
-        npm install puppeteer-core@21.5.0 puppeteer-extra puppeteer-extra-plugin-stealth axios express
-
-    - name: Run Scalper Engine
-      run: node scraper.js
-      env:
-        PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-
-    - name: Commit & Push Seen Ads DB
-      run: |
-        git config --local user.email "actions@github.com"
-        git config --local user.name "GitHub Actions"
-        git add seen_ads.json || true
-        git commit -m "Auto-update seen_ads database [skip ci]" -a || true
-        git push || true
+        npm install axios
+        node scraper.js
