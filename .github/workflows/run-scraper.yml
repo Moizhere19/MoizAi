@@ -19,8 +19,8 @@ jobs:
         node-version: 24
         cache: 'npm'
 
-    # 🔥 Fixed: Ubuntu 24.04 friendly package manager configs
-    - name: Install Google Chrome & Minimal Linux Runtime
+    # 🔥 Fixed: Removed broken legacy packages completely to avoid exit code 100
+    - name: Install Google Chrome & Stable Linux Runtime
       run: |
         sudo apt-get update
         sudo apt-get install -y wget gnupg
@@ -28,8 +28,8 @@ jobs:
         sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
         sudo apt-get update
         sudo apt-get install -y google-chrome-stable --no-install-recommends
-        # Only install existing modern graphics/font rendering dependencies
-        sudo apt-get install -y libnss3 libxss1 libgbm-dev libasound2t64 || sudo apt-get install -y libnss3 libxss1 libgbm-dev
+        # Only install existing modern libraries that Chrome actually needs
+        sudo apt-get install -y libnss3 libxss1 libgbm-dev
 
     - name: Install Hardened Dependencies
       run: |
@@ -40,6 +40,7 @@ jobs:
       run: node scraper.js
       env:
         PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
     - name: Commit & Push Seen Ads DB
       run: |
