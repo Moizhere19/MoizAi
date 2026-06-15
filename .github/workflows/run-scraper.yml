@@ -10,19 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. Upgraded to v4 for Node.js 24 compatibility
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. Upgraded to v4 with Node.js 24
-    - name: Setup Node.js
+    # Force integration of Node 24 directly onto the runner environment
+    - name: Setup Node.js v24
       uses: actions/setup-node@v4
       with:
         node-version: 24
         cache: 'npm'
 
-    # 3. 🔥 CRITICAL: Install Linux Dependencies for Chrome/Puppeteer
-    - name: Install Google Chrome & Missing Linux Libraries
+    - name: Install Google Chrome & Linux Libraries
       run: |
         sudo apt-get update
         sudo apt-get install -y wget gnupg
@@ -32,16 +30,16 @@ jobs:
         sudo apt-get install -y google-chrome-stable --no-install-recommends
         sudo apt-get install -y libgconf-2-4 libatk1.0-0 libatk-bridge2.0-0 libgdk-pixbuf2.0-0 libgtk-3-0 libgbm-dev libnss3 libxss1 libasound2
 
-    - name: Install Dependencies
-      run: npm install
+    # Clear old locks and force correct installations
+    - name: Install Hardened Dependencies
+      run: |
+        rm -rf node_modules package-lock.json
+        npm install puppeteer-core@21.5.0 puppeteer-extra puppeteer-extra-plugin-stealth axios express
 
     - name: Run Scalper Engine
       run: node scraper.js
       env:
-        # Prevents Puppeteer from downloading its own heavy chrome binary
         PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'true'
-        # Force GitHub Actions backend to accept modern node environments
-        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     - name: Commit & Push Seen Ads DB
       run: |
