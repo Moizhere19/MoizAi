@@ -1,8 +1,7 @@
-const puppeteer = require('puppeteer'); 
-const axios = require('axios');
-
 async function run() {
-    console.log("Agent is running...");
+    console.log("Initializing Agent...");
+    // Dynamic import to bypass ESM conflict
+    const puppeteer = await import('puppeteer');
     const browser = await puppeteer.launch({
         headless: "new",
         args: ['--no-sandbox', '--disable-setuid-sandbox']

@@ -1,4 +1,5 @@
 name: Karachi Car Scalper Engine
+
 on:
   schedule:
     - cron: '*/15 * * * *'
@@ -8,13 +9,18 @@ jobs:
   agent-init:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
-    - name: Setup Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-    - name: Install dependencies
-      run: npm install
-    - name: Run Agent
-      run: node agent.js
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Clean & Install
+        run: |
+          rm -rf node_modules
+          npm install
+          
+      - name: Run Agent
+        run: node agent.js
