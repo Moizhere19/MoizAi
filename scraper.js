@@ -1,12 +1,11 @@
-const puppeteerExtra = require('puppeteer-extra');
+const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
-// Tell puppeteer-extra to use puppeteer-core as the underlying driver
-const puppeteer = puppeteerExtra.use(StealthPlugin());
-puppeteer.vanillaLauncher = require('puppeteer-core'); 
+// Apply stealth plugin directly
+puppeteer.use(StealthPlugin());
 
 // --- CONFIGURATION ---
 const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1516120799038275665/bDyYMwOCs6kJQFlMysG-jCUTIYhahfXPTvozJC-jC1EhkLSCJzJ_VakPbuU8TIV_5M3W'; 
@@ -121,7 +120,8 @@ async function run() {
     console.log(`Scanning Marketplaces...`);
     const browser = await puppeteer.launch({ 
         headless: "new", 
-        executablePath: '/usr/bin/google-chrome', 
+        // Force the execution path safely without manual require injections
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome', 
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox', 
