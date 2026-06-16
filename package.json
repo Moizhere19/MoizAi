@@ -1,0 +1,28 @@
+{
+  "dependencies": {
+    "axios": "^1.18.0",
+    "puppeteer": "^25.1.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "name": "automate-task",
+  "version": "1.0.0",
+  "description": "",
+  "main": "scraper.js",
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Moizhere19/MoizAi.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Moizhere19/MoizAi/issues"
+  },
+  "homepage": "https://github.com/Moizhere19/MoizAi#readme"
+}
